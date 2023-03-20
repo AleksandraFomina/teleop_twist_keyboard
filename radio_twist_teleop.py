@@ -8,16 +8,6 @@ import roslib; roslib.load_manifest('teleop_twist_keyboard')
 import rospy
 
 from geometry_msgs.msg import Twist
-from geometry_msgs.msg import TwistStamped
-
-import sys
-from select import select
-
-if sys.platform == 'win32':
-    import msvcrt
-else:
-    import termios
-    import tty
 
 import serial
 
@@ -25,35 +15,12 @@ import serial
 TwistMsg = Twist
 
 ser = serial.Serial()
-ser.baudrate = 9600
-ser.port = "/dev/serial/by-path/platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0-port0"
-ser.dtr = False
-ser.timeout = 0.5
-ser.open()
-
-ser.flushInput()
-
-
 
 moveBindings = {
         'w':(1,0,0,0),
-        #'o':(1,0,0,-1),
         'a':(0,0,0,1),
         'd':(0,0,0,-1),
-       # 'u':(1,0,0,1),
         's':(-1,0,0,0),
-        #'.':(-1,0,0,1),
-        #'m':(-1,0,0,-1),
-        #'O':(1,-1,0,0),
-        #'I':(1,0,0,0),
-        #'J':(0,1,0,0),
-       # 'L':(0,-1,0,0),
-        #'U':(1,1,0,0),
-       # '<':(-1,0,0,0),
-        #'>':(-1,-1,0,0),
-       # 'M':(-1,1,0,0),
-       # 't':(0,0,1,0),
-       # 'b':(0,0,-1,0),
     }
 
 speedBindings={
@@ -66,7 +33,7 @@ speedBindings={
     }
 
 class PublishThread(threading.Thread):
-    def __init__(self, rate):
+    def __init__(self):
         super(PublishThread, self).__init__()
         self.publisher = rospy.Publisher('cmd_vel', TwistMsg, queue_size = 1)
         self.x = 0.0
@@ -78,26 +45,11 @@ class PublishThread(threading.Thread):
         self.condition = threading.Condition()
         self.done = False
 
-        # Set timeout to None if rate is 0 (causes new_message to wait forever
-        # for new data to publish)
-        if rate != 0.0:
-            self.timeout = 1.0 / rate
-        else:
-            self.timeout = None
+        self.timeout = None
 
         self.start()
 
-    def wait_for_subscribers(self):
-        i = 0
-        while not rospy.is_shutdown() and self.publisher.get_num_connections() == 0:
-            if i == 4:
-                print("Waiting for subscriber to connect to {}".format(self.publisher.name))
-            rospy.sleep(0.5)
-            i += 1
-            i = i % 5
-        if rospy.is_shutdown():
-            raise Exception("Got shutdown request before subscribers connected")
-
+    
     def update(self, x, y, z, th, speed, turn):
         self.condition.acquire()
         self.x = x
@@ -116,17 +68,10 @@ class PublishThread(threading.Thread):
         self.join()
 
     def run(self):
-        twist_msg = TwistMsg()
+        twist = TwistMsg()
 
-        if stamped:
-            twist = twist_msg.twist
-            twist_msg.header.stamp = rospy.Time.now()
-            twist_msg.header.frame_id = twist_frame
-        else:
-            twist = twist_msg
         while not self.done:
-            if stamped:
-                twist_msg.header.stamp = rospy.Time.now()
+            
             self.condition.acquire()
             # Wait for a new message or timeout.
             self.condition.wait(self.timeout)
@@ -142,7 +87,7 @@ class PublishThread(threading.Thread):
             self.condition.release()
 
             # Publish.
-            self.publisher.publish(twist_msg)
+            self.publisher.publish(twist)
 
         # Publish stop message when thread exits.
         twist.linear.x = 0
@@ -151,13 +96,11 @@ class PublishThread(threading.Thread):
         twist.angular.x = 0
         twist.angular.y = 0
         twist.angular.z = 0
-        self.publisher.publish(twist_msg)
+        self.publisher.publish(twist)
 
 
 def getKey():
     key = ser.read(1).decode()
-    #termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
-
     return key
 
 
@@ -167,19 +110,21 @@ def vels(speed, turn):
 if __name__=="__main__":
     
     rospy.init_node('teleop_twist_keyboard')
+    ser.baudrate = rospy.get_param("~baudrate", 9600)
+    ser.port = rospy.get_param("~port", "/dev/ttyUSB0")
+    ser.dtr = False
+    ser.timeout = 0.5
+    ser.open()
+
+    ser.flushInput()
 
     speed = rospy.get_param("~speed", 0.5)
     turn = rospy.get_param("~turn", 1.0)
-    speed_limit = rospy.get_param("~speed_limit", 1000)
-    turn_limit = rospy.get_param("~turn_limit", 1000)
-    repeat = rospy.get_param("~repeat_rate", 0.0)
-    key_timeout = rospy.get_param("~key_timeout", 0.5)
-    stamped = rospy.get_param("~stamped", False)
-    twist_frame = rospy.get_param("~frame_id", '')
-    if stamped:
-        TwistMsg = TwistStamped
-
-    pub_thread = PublishThread(repeat)
+    speed_limit = 2
+    turn_limit = 3
+    key_timeout = 0.5
+    
+    pub_thread = PublishThread()
 
     x = 0
     y = 0
@@ -188,11 +133,8 @@ if __name__=="__main__":
     status = 0
 
     try:
-        pub_thread.wait_for_subscribers()
         pub_thread.update(x, y, z, th, speed, turn)
-
-        #print(msg)
-        #print(vels(speed,turn))
+        ser.write(vels(speed,turn).encode())
         while(1):
             key = getKey()
             if key in moveBindings.keys():
@@ -204,12 +146,12 @@ if __name__=="__main__":
                 speed = min(speed_limit, speed * speedBindings[key][0])
                 turn = min(turn_limit, turn * speedBindings[key][1])
                 if speed == speed_limit:
-                    print("Linear speed limit reached!")
+                    ser.write("Linear speed limit reached!".encode())
                 if turn == turn_limit:
-                    print("Angular speed limit reached!")
-                print(vels(speed,turn))
+                    ser.write("Angular speed limit reached!".encode())
+                ser.write(vels(speed,turn).encode())
                 if (status == 14):
-                    print(msg)
+                    ser.write("see instruction".encode())
                 status = (status + 1) % 15
             else:
                 # Skip updating cmd_vel if key timeout and robot already
@@ -220,15 +162,17 @@ if __name__=="__main__":
                 y = 0
                 z = 0
                 th = 0
-                #if (key == '\x03'):
-                 #   break
+                if (key == '\x03'):
+                    break
 
             pub_thread.update(x, y, z, th, speed, turn)
 
     except Exception as e:
-        ser.write(e.encode())
+        print(e)
+     
 
     finally:
         pub_thread.stop()
         
+
 
