@@ -8,7 +8,7 @@ rosrun teleop_twist_keyboard teleop_twist_keyboard.py
 ```
 Run with radio control
 ```
-rosrun teleop_twist_keyboard radio_twist_keyboard.py _baudrate:=9600 _port:= /dev/ttyUSB0
+rosrun teleop_twist_keyboard radio_twist_teleop.py _baudrate:=9600 _port:= /dev/ttyUSB0
 ```
 With custom values.
 ```
@@ -20,6 +20,25 @@ Publishing to a different topic (in this case `my_cmd_vel`).
 rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=my_cmd_vel
 ```
 
+# Usage with radio control
+```
+On your computer to which the radio receiver is connected, run the script radio_twist_teleop.py
+
+Reading from the keyboard 
+---------------------------
+Moving around:
+        w    
+   a    s    d
+   
+anything else : stop
+
+q/z : increase/decrease max speeds by 10%
+u/j : increase/decrease only linear speed by 10%
+e/c : increase/decrease only angular speed by 10%
+
+CTRL-C to quit
+"""
+```
 # Usage
 ```
 Reading from the keyboard  and Publishing to Twist!
