@@ -26,6 +26,7 @@ On your computer to which the radio receiver is connected, run the script radio_
 from [turtlebro_radio_control](https://github.com/AleksandraFomina/turtlebro_radio_control)  
 
 Reading from the keyboard 
+```
 ---------------------------
 Moving around:
         w    
