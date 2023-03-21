@@ -8,7 +8,7 @@ rosrun teleop_twist_keyboard teleop_twist_keyboard.py
 ```
 Run with radio control
 ```
-rosrun teleop_twist_keyboard radio_twist_keyboard.py
+rosrun teleop_twist_keyboard radio_twist_keyboard.py _baudrate:=9600 _port:= /dev/ttyUSB0
 ```
 With custom values.
 ```
