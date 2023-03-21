@@ -22,9 +22,13 @@ rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=my_cmd_vel
 
 # Usage with radio control
 ```
+_Важное примечание!_
+
+Для того, чтобы робот начал считывать aruco маркеры, необходимо переключить работу камеры с веб-интерфейса на публикацию данных в ROS. Подробнее об этом в инструкции: https://manual.turtlebro.ru/paket-turtlebro/video
+
 On your computer to which the radio receiver is connected, run the script radio_send_keyboard.py
 from [turtlebro_radio_control](https://github.com/AleksandraFomina/turtlebro_radio_control)  
-```
+
 Reading from the keyboard 
 ---------------------------
 Moving around:
