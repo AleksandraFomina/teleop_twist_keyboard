@@ -6,7 +6,7 @@ Run.
 ```
 rosrun teleop_twist_keyboard teleop_twist_keyboard.py
 ```
-Run with radio control
+Button control of the robot via the radio channel. Run on the robot 
 ```
 rosrun teleop_twist_keyboard radio_twist_teleop.py _baudrate:=9600 _port:= /dev/ttyUSB0
 ```
